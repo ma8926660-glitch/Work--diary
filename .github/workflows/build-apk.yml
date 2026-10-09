@@ -1,4 +1,4 @@
-name: Build APK
+name: Build Work Diary APK
 
 on:
   workflow_dispatch:
@@ -9,25 +9,33 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Grant execute permission
-        run: chmod +x gradlew
+      - name: Extract Android project ZIP
+        run: unzip -o my-work-diary-android.zip -d extracted
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Find Gradle wrapper
+        run: find extracted -type f -name gradlew
+
+      - name: Build debug APK
+        run: |
+          GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLEW" ]; then echo 'gradlew not found'; exit 1; fi
+          cd "$(dirname "$GRADLEW")"
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: work-diary-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: work-diary-debug-apk
+          path: extracted/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
