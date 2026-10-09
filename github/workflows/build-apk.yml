@@ -1,0 +1,45 @@
+name: Build Work Diary APK
+
+on:
+workflow_dispatch:
+push:
+paths:
+- ".github/workflows/build-apk.yml"
+
+jobs:
+build:
+runs-on: ubuntu-latest
+steps:
+- name: Checkout repository
+uses: actions/checkout@v4
+
+  - name: Extract Android project ZIP
+    run: |
+      find . -maxdepth 2 -type f -name "*.zip" -print
+      ZIP_FILE=$(find . -maxdepth 2 -type f -name "*.zip" | head -n 1)
+      if [ -z "$ZIP_FILE" ]; then
+        echo "Android project ZIP not found"
+        exit 1
+      fi
+      mkdir android-project
+      unzip -q "$ZIP_FILE" -d android-project
+      find android-project -name gradlew -type f -print
+
+  - name: Stop if Gradle wrapper is missing
+    run: |
+      if ! find android-project -name gradlew -type f | grep -q .; then
+        echo "Gradle wrapper not found in ZIP"
+        exit 1
+      fi
+
+  - name: Build debug APK
+    run: |
+      cd "$(dirname "$(find "$GITHUB_WORKSPACE/android-project" -name gradlew -type f | head -n 1)")"
+      chmod +x gradlew
+      ./gradlew assembleDebug
+
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: work-diary-apk
+      path: android-project/**/build/outputs/apk/debug/*.apk
