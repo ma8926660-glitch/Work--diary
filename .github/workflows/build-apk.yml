@@ -22,20 +22,19 @@ jobs:
       - name: Extract Android project ZIP
         run: unzip -o my-work-diary-android.zip -d extracted
 
-      - name: Find Gradle wrapper
-        run: find extracted -type f -name gradlew
-- name: Fix missing Gradle wrapper JAR
-  run: |
-    PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
-    if [ -z "$PROPS" ]; then echo "Gradle properties not found"; exit 1; fi
-    VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
-    if [ -z "$VERSION" ]; then echo "Gradle version not found"; exit 1; fi
-    DIR=$(dirname "$PROPS")
-    curl -fL "https://services.gradle.org/distributions/gradle-${VERSION}-wrapper.jar" -o "$DIR/gradle-wrapper.jar"
+      - name: Fix missing Gradle wrapper JAR
+        run: |
+          PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
+          if [ -z "$PROPS" ]; then echo "Gradle properties not found"; exit 1; fi
+          VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
+          if [ -z "$VERSION" ]; then echo "Gradle version not found"; exit 1; fi
+          DIR=$(dirname "$PROPS")
+          curl -fL "https://services.gradle.org/distributions/gradle-${VERSION}-wrapper.jar" -o "$DIR/gradle-wrapper.jar"
+
       - name: Build debug APK
         run: |
           GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
-          if [ -z "$GRADLEW" ]; then echo 'gradlew not found'; exit 1; fi
+          if [ -z "$GRADLEW" ]; then echo "gradlew not found"; exit 1; fi
           cd "$(dirname "$GRADLEW")"
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -44,5 +43,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: work-diary-debug-apk
-          path: extracted/**/build/outputs/apk/debug/*.apk
+          path: extracted/**/build/outputs/apk/**/*.apk
           if-no-files-found: error
