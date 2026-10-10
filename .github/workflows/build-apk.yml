@@ -1,6 +1,6 @@
 name: Build Work Diary APK
 
-on:
+'on':
 workflow_dispatch:
 push:
 branches:
@@ -21,23 +21,27 @@ steps:
       java-version: '17'
 
   - name: Extract Android project ZIP
-    run: unzip -o my-work-diary-android.zip -d extracted
+    run: |
+      mkdir -p extracted
+      unzip -o my-work-diary-android.zip -d extracted
 
-  - name: Read Gradle version
+  - name: Find Gradle version
     id: gradle_version
     shell: bash
     run: |
       PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
       if [ -z "$PROPS" ]; then
-        echo "Gradle properties not found"
+        echo "ERROR: gradle-wrapper.properties not found"
         exit 1
       fi
       VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
       if [ -z "$VERSION" ]; then
-        echo "Gradle version not found"
+        echo "ERROR: Could not read Gradle version"
+        cat "$PROPS"
         exit 1
       fi
       echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      echo "Using Gradle version: $VERSION"
 
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
@@ -49,10 +53,11 @@ steps:
     run: |
       GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
       if [ -z "$GRADLEW" ]; then
-        echo "gradlew not found"
+        echo "ERROR: gradlew not found in ZIP"
         exit 1
       fi
-      cd "$(dirname "$GRADLEW")"
+      PROJECT_DIR=$(dirname "$GRADLEW")
+      cd "$PROJECT_DIR"
       gradle assembleDebug
 
   - name: Upload APK
