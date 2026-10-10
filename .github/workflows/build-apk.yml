@@ -25,11 +25,18 @@ steps:
 
   - name: Read Gradle version
     id: gradle_version
+    shell: bash
     run: |
       PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
-      if [ -z "$PROPS" ]; then echo "Gradle properties not found"; exit 1; fi
+      if [ -z "$PROPS" ]; then
+        echo "Gradle properties not found"
+        exit 1
+      fi
       VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
-      if [ -z "$VERSION" ]; then echo "Gradle version not found"; exit 1; fi
+      if [ -z "$VERSION" ]; then
+        echo "Gradle version not found"
+        exit 1
+      fi
       echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
   - name: Set up Gradle
@@ -38,9 +45,13 @@ steps:
       gradle-version: ${{ steps.gradle_version.outputs.version }}
 
   - name: Build debug APK
+    shell: bash
     run: |
       GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
-      if [ -z "$GRADLEW" ]; then echo "gradlew not found"; exit 1; fi
+      if [ -z "$GRADLEW" ]; then
+        echo "gradlew not found"
+        exit 1
+      fi
       cd "$(dirname "$GRADLEW")"
       gradle assembleDebug
 
