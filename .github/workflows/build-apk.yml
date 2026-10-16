@@ -23,7 +23,7 @@ jobs:
       - name: Extract Android project ZIP
         run: |
           mkdir -p extracted
-          unzip -o my-work-diary-android.zip -d extracted
+          unzip -o ./*.zip -d extracted
 
       - name: Find Gradle version
         id: gradle_version
