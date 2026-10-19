@@ -1,20 +1,66 @@
-My Work Diary के Android Kotlin (Jetpack Compose) प्रोजेक्ट में "Labour-wise Payment Account" फ़ीचर अधूरा रह गया है, और `gradle assembleDebug` पर ये 2 compile errors आ रहे हैं। पहले इन्हें ठीक करो, फिर फ़ीचर पूरा करो।
+name: Build Work Diary APK
 
-A. Compile errors:
-1. HomeScreen.kt लाइन 436: "Unresolved reference 'totalPaymentsOut'"। ViewModel/state में `totalPaymentsOut` बनाओ (सभी मज़दूरों को दी गई कुल पेमेंट का जोड़), या HomeScreen में सही मौजूदा variable इस्तेमाल करो।
-2. LabourAccountsScreen.kt लाइन 424: "Unresolved reference 'lbl_quick_pay'"। values/strings.xml (English) और values-hi/strings.xml (Hindi) दोनों में `lbl_quick_pay` जोड़ो ("Quick Pay" / "त्वरित भुगतान")।
-3. पूरे प्रोजेक्ट में जाँचो कि हर `R.string.xxx`, हर variable, function और class जो इस्तेमाल हुआ है, वह कहीं परिभाषित भी है। कहीं और ऐसा मिले तो उसे भी ठीक करो।
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-B. Labour-wise Payment Account (जो अधूरा है उसे पूरा करो):
-1. हर मज़दूर की हर पेमेंट (Wage या Advance) में labourId जुड़ा हो। वह पेमेंट सिर्फ़ उसी मज़दूर के खाते में गिनी जाए, किसी दूसरे मज़दूर या Owners (Client Received) के हिसाब में न मिले।
-2. "Add Labour Payment" स्क्रीन: मज़दूर की लिस्ट से नाम चुनो, Amount, Date (आज की डिफ़ॉल्ट), Type (Wage / Advance), Note।
-3. मज़दूर के पेज पर: This Week, This Month, Overall total, Wages और Advances का अलग जोड़, हफ़्ता/महीना बदलने का option, तारीख-वार पेमेंट लिस्ट (edit और delete के साथ)।
-4. "Labour Accounts" पेज: सारे मज़दूरों की लिस्ट, हर एक के आगे कुल पेमेंट, ऊपर सबका कुल जोड़, नाम से search।
-5. Home पर Wages Paid = सभी मज़दूरों की कुल पेमेंट। "Balance" = Client Received (सब मालिकों का जोड़) माइनस Wages Paid, और स्क्रीन पर लिखो कि कैसे निकला।
+jobs:
+  build:
+    runs-on: ubuntu-24.04
 
-C. सामान्य नियम:
-1. सारा text string resources में रखो (English डिफ़ॉल्ट, Hindi values-hi में), ताकि Language selector से बदले।
-2. Room database में ज़रूरी बदलाव करो, version बढ़ाओ और fallbackToDestructiveMigration() लगाओ।
-3. सब offline। डिज़ाइन मौजूदा ऐप जैसा रखो।
-4. Preview और Android Kotlin ऐप, दोनों में बदलो।
-5. आख़िर में पूरा project दोबारा बनाओ और ज़िप में सारी फ़ाइलें (app/, build.gradle.kts, settings.gradle.kts, gradle.properties, gradlew, gradle/wrapper) रखो, ताकि `gradle assembleDebug` बिना किसी compile error के चले।
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract Android project ZIP
+        run: |
+          mkdir -p extracted
+          unzip -o ./*.zip -d extracted
+
+      - name: Find Gradle version
+        id: gradle_version
+        shell: bash
+        run: |
+          PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
+          if [ -z "$PROPS" ]; then
+            echo "ERROR: gradle-wrapper.properties not found"
+            exit 1
+          fi
+          VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Could not read Gradle version"
+            cat "$PROPS"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ steps.gradle_version.outputs.version }}
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found in ZIP"
+            exit 1
+          fi
+          cd "$(dirname "$GRADLEW")"
+          gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-diary-debug-apk
+          path: extracted/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
