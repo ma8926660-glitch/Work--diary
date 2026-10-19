@@ -1,15 +1,66 @@
-Android Kotlin प्रोजेक्ट में दो काम करो।
+name: Build Work Diary APK
 
-भाग 1: compile errors ठीक करो।
-1. HomeScreen.kt लाइन 436: 'totalPaymentsOut' unresolved। ViewModel में बनाओ (सब मज़दूरों को दी कुल पेमेंट का जोड़) या सही मौजूदा variable इस्तेमाल करो।
-2. LabourAccountsScreen.kt लाइन 424: 'lbl_quick_pay' unresolved। values/strings.xml ("Quick Pay") और values-hi/strings.xml ("त्वरित भुगतान") दोनों में जोड़ो।
-3. पूरे प्रोजेक्ट में जाँचो कि हर R.string, variable, function और class कहीं परिभाषित भी है। कहीं और ऐसा मिले तो ठीक करो।
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-भाग 2: "8. Android App (.ZIP)" का डाउनलोड ठीक करो। अभी ZIP की जगह एक HTML "Cookie check" पेज डाउनलोड होता है।
-1. ZIP पूरी तरह browser के अंदर JSZip से बनाओ और Blob URL से सीधे डाउनलोड कराओ। किसी server, बाहरी लिंक या redirect का इस्तेमाल मत करो।
-2. फ़ाइल का नाम ठीक `my-work-diary-android.zip` हो।
-3. ZIP में पूरा project हो: app/, build.gradle.kts, settings.gradle.kts, gradle.properties, gradlew, gradle/wrapper।
-4. बैकअप के लिए उसी सेक्शन में हर फ़ाइल की सूची दिखाओ, हर फ़ाइल के आगे "Copy" बटन के साथ।
-5. डाउनलोड के बाद स्क्रीन पर ZIP का साइज़ (KB) दिखाओ।
+jobs:
+  build:
+    runs-on: ubuntu-24.04
 
-आख़िर में `gradle assembleDebug` बिना compile error के चलना चाहिए।
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract Android project ZIP
+        run: |
+          mkdir -p extracted
+          unzip -o ./*.zip -d extracted
+
+      - name: Find Gradle version
+        id: gradle_version
+        shell: bash
+        run: |
+          PROPS=$(find extracted -type f -name gradle-wrapper.properties | head -n 1)
+          if [ -z "$PROPS" ]; then
+            echo "ERROR: gradle-wrapper.properties not found"
+            exit 1
+          fi
+          VERSION=$(sed -n 's/.*gradle-\([0-9][0-9.]*\)-\(bin\|all\)\.zip.*/\1/p' "$PROPS")
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Could not read Gradle version"
+            cat "$PROPS"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ steps.gradle_version.outputs.version }}
+
+      - name: Build debug APK
+        shell: bash
+        run: |
+          GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew not found in ZIP"
+            exit 1
+          fi
+          cd "$(dirname "$GRADLEW")"
+          gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-diary-debug-apk
+          path: extracted/**/build/outputs/apk/**/*.apk
+          if-no-files-found: error
