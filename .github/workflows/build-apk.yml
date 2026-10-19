@@ -1,6 +1,7 @@
-name: Build Work Diary APK
-
-on:
+Android Kotlin प्रोजेक्ट में ये 2 compile errors ठीक करो:
+1. HomeScreen.kt लाइन 436: 'totalPaymentsOut' unresolved। ViewModel में इसे बनाओ (सब मज़दूरों को दी कुल पेमेंट) या सही मौजूदा variable इस्तेमाल करो।
+2. LabourAccountsScreen.kt लाइन 424: 'lbl_quick_pay' unresolved। values/strings.xml और values-hi/strings.xml में यह string जोड़ो।
+पूरे प्रोजेक्ट में देखो कि कोई और अपरिभाषित reference तो नहीं, और पूरा project दोबारा बनाओ ताकि `gradle assembleDebug` बिना error चले।
   workflow_dispatch:
   push:
     branches:
